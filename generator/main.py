@@ -1,0 +1,20 @@
+import sys
+from generator.parsor import parse_config_file, parse_cli_arguments
+from generator.generator import generate_network
+
+if __name__ == "__main__":
+    try:
+        config_pairs = parse_cli_arguments(sys.argv[1:])
+    except Exception as e:
+        print(f"error: {e}")
+        sys.exit(84)
+    
+    for config_file, nb, in config_pairs:
+        try:
+            config = parse_config_file(config_file)
+            generate_network(config_file, config, nb)
+        except Exception as e:
+            print(f"error: {e}")
+            sys.exit(84)
+
+    sys.exit(0)
