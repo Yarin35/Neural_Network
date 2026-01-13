@@ -2,14 +2,13 @@
 
 ## Project Overview
 
-**My Torch** is a from-scratch neural network implementation in Python for chess position analysis. The system classifies chess positions (FEN notation) into 4 categories:
+**My Torch** is a from-scratch neural network implementation in **C++** for chess position analysis. The system classifies chess positions (FEN notation) into 6 categories:
 
-- **Nothing**: Normal position
-- **Check**: King is in check
-- **Checkmate**: Game over
-- **Stalemate**: Draw position
+- **Nothing White/Black**: Normal position (white's or black's perspective)
+- **Check White/Black**: King is in check (indicating which side has advantage)
+- **Checkmate White/Black**: Game over (indicating winner)
 
-**Key Constraint**: Pure Python implementation - NO PyTorch/TensorFlow allowed.
+**Key Constraint**: Pure C++ implementation - NO external lib too useful allowed (keep from scratch approach).
 
 ---
 
@@ -24,7 +23,7 @@ Hidden Layer 1 (128 neurons, ReLU)
     ↓
 Hidden Layer 2 (64 neurons, ReLU)
     ↓
-Output Layer (4 neurons, Softmax)
+Output Layer (6 neurons, Softmax)
 ```
 
 ### Input Encoding (769 dimensions)
@@ -36,12 +35,14 @@ Output Layer (4 neurons, Softmax)
 
 ### Output Classes
 
-| Class     | Index | One-Hot Vector |
-| --------- | ----- | -------------- |
-| Nothing   | 0     | [1, 0, 0, 0]   |
-| Check     | 1     | [0, 1, 0, 0]   |
-| Checkmate | 2     | [0, 0, 1, 0]   |
-| Stalemate | 3     | [0, 0, 0, 1]   |
+| Class           | Index | One-Hot Vector     |
+| --------------- | ----- | ------------------ |
+| Nothing White   | 0     | [1, 0, 0, 0, 0, 0] |
+| Nothing Black   | 1     | [0, 1, 0, 0, 0, 0] |
+| Check White     | 2     | [0, 0, 1, 0, 0, 0] |
+| Check Black     | 3     | [0, 0, 0, 1, 0, 0] |
+| Checkmate White | 4     | [0, 0, 0, 0, 1, 0] |
+| Checkmate Black | 5     | [0, 0, 0, 0, 0, 1] |
 
 ---
 
@@ -57,12 +58,12 @@ Output Layer (4 neurons, Softmax)
 
 ```ini
 input_size=769
-layer_sizes=128,64,4
+layer_sizes=128,64,6
 activations=relu,relu,softmax
 learning_rate=0.001
 ```
 
-Output: `network_1.nn` (JSON format, ~4MB)
+Output: `network_1.nn` (JSON format, ~1.1MB)
 
 ### 2. Train the Network
 
@@ -74,7 +75,8 @@ Output: `network_1.nn` (JSON format, ~4MB)
 
 ```bash
 rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 nothing
-r1bqkb1r/pppp1Qpp/2n2n2/4p3/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 0 4 checkmate
+r1bqkb1r/pppp1Qpp/2n2n2/4p3/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 0 4 checkmate White
+rnb1kbnr/pppp1ppp/8/4p3/6Pq/5P2/PPPPP2P/RNBQKBNR w KQkq - 1 3 checkmate Black
 ```
 
 ### 3. Make Predictions
@@ -86,8 +88,9 @@ r1bqkb1r/pppp1Qpp/2n2n2/4p3/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 0 4 checkmate
 Output:
 
 ```bash
-Nothing (expected: nothing)
-Checkmate (expected: checkmate)
+Nothing White (expected: nothing)
+Checkmate White (expected: checkmate White)
+Check Black (expected: check Black)
 ```
 
 ---
@@ -96,58 +99,48 @@ Checkmate (expected: checkmate)
 
 ### Training Configuration
 
-- **Dataset**: 2000 samples (from 473K positions)
-  - 1000 Nothing positions
-  - 800 Checkmate positions
-  - no check positions
+- **Implementation**: C++ from scratch (no external ML libraries)
+- **Dataset**: Balanced dataset with all 6 classes
+  - Nothing White/Black positions (both are the same result => Nothing)
+  - Check White/Black positions
+  - Checkmate White/Black positions
 - **Optimizer**: Stochastic Gradient Descent (SGD)
 - **Learning Rate**: 0.001
-- **Epochs**: 20
+- **Epochs**: Multiple training sessions
 - **Batch Size**: 1 (online learning)
 - **Loss Function**: Cross-Entropy
 
-### Training Results
-
-| Epoch | Loss   |
-| ----- | ------ |
-| 0     | 0.9447 |
-| 2     | 0.6551 |
-| 4     | 0.6166 |
-| 6     | 0.5794 |
-| 8     | 0.5357 |
-| 10    | 0.4849 |
-| 12    | 0.4300 |
-| 14    | 0.3748 |
-| 16    | 0.3219 |
-| 18    | 0.2719 |
-
-> result based on latest test might be slightly different between each run but should be globally the same.
-
-> The lack of check position is significant in the lack of check guess from the network
-
-**Convergence**: Smooth decrease from 0.94 → 0.27 (71% reduction)
-
 ### Performance Metrics
 
-| Metric         | Value                                |
-| -------------- | ------------------------------------ |
-| Training Time  | ~8 minutes (2000 samples, 20 epochs) |
-| Network Size   | 3.9 MB                               |
-| Inference Time | < 0.01s per position                 |
-| Parameters     | ~98,820 (769×128 + 128×64 + 64×4)    |
+| Metric             | Value                                |
+| ------------------ | ------------------------------------ |
+| **Accuracy Range** | **68-78%** (varies per testing data) |
+| Network Size       | 1.1 MB (JSON format)                 |
+| Parameters         | ~106,694 (769×128 + 128×64 + 64×6)   |
+| Training Time      | Varies by dataset size               |
+| Implementation     | Pure C++                             |
 
-### Sample Predictions
+### Accuracy Analysis
 
-| Position             | Ground Truth | Prediction | ✓/✗ |
-| -------------------- | ------------ | ---------- | --- |
-| Starting position    | Nothing      | Nothing    | ✓   |
-| Fool's mate          | Checkmate    | Nothing    | ✗   |
-| King vs King         | Stalemate    | Checkmate  | ✗   |
-| Scholar's mate setup | Check        | Checkmate  | ✗   |
+**Current Performance**: 68-78% accuracy on test datasets
 
-**Observed Issue**: Model needs more training data for Check/Stalemate classes (underrepresented).
+**Strengths**:
 
----
+- Good recognition of basic positions (Nothing)
+- Effective checkmate detection in clear cases
+- Fast inference time thanks to C++ implementation
+
+**Areas for Improvement**:
+
+- Check vs Checkmate distinction needs refinement
+- Edge cases with complex positions
+- Balance between white/black perspective predictions
+
+**Variance**: The 10% accuracy range (68-78%) is due to:
+
+- Random weight initialization (Xavier/Glorot method)
+- Stochastic gradient descent randomness
+- Training data shuffling order
 
 ## Mathematical Foundation
 
@@ -221,26 +214,38 @@ Ensures stable variance across layers.
 
 ```bash
 .
-├── my_torch_generator
-├── my_torch_analyzer
-├── my_torch_network.nn
-├── network.conf
-├── dataset/
-│   ├── check/
-│   ├── nothing/
-│   └── checkmate/
-├── generator/
-│   ├── main.py
-│   ├── parsor.py
-│   └── generator.py
-├── analyzer/
-│   ├── main.py
-│   ├── parsor.py
-│   ├── fen_parser.py
-│   ├── network.py
-│   ├── train.py
-│   └── predict.py
-└── makefile
+├── my_torch_generator          # Binary (generator)
+├── my_torch_analyzer           # Binary (analyzer)
+├── my_torch_network.nn         # Pre-trained network (on all training dataset)
+├── network.conf                # Network configuration
+├── Makefile                    # Build system
+├── data/
+│   ├── test_data.txt
+│   ├── small_dataset.txt
+│   ├── large_dataset.txt
+│   ├── max_balanced_dataset.txt
+│   ├── dataset/
+│   │   ├── test_light.txt  # small testing file (100 lines)
+│   │   ├── test_medium.txt # medium size testing file (1 000 lines)
+│   │   └── test_heavy.txt  # large testing file (10 000 lines)
+│   └── dataset/
+│       ├── check/              # Check positions
+│       ├── nothing/            # Normal positions
+│       └── checkmate/          # Checkmate positions
+├── generator_cpp/
+│   ├── main.cpp                # Generator entry point
+│   ├── parsor.cpp              # Config file parser
+│   └── generator.cpp           # Network initialization
+├── analyzer_cpp/
+│   ├── main.cpp                # Analyzer entry point
+│   ├── parsor.cpp              # Argument parser
+│   ├── fen_parser.cpp          # FEN to neural input
+│   ├── network.cpp             # Forward/backward pass
+│   ├── train.cpp               # Training logic
+│   └── predict.cpp             # Prediction logic
+└── include/
+    ├── json_parser.cpp         # JSON serialization
+    └── json_parser.hpp         # JSON header
 ```
 
 ---
@@ -248,10 +253,10 @@ Ensures stable variance across layers.
 ## Building
 
 ```bash
-make
-make clean
-make fclean
-make re
+make  # to build
+make clean  # to clean 
+make fclean # clean advanced
+make re # to clean and build
 ```
 
 ---
@@ -262,32 +267,51 @@ make re
 
 - **64 squares × 12 piece types** = 768 (one-hot encoding)
 - **+1 for turn**: Critical for positions where only the turn differentiates states
+- Captures complete board state in a format suitable for neural networks
 
 ### 2. Why 128 → 64 hidden layers?
 
-- **Gradual compression**: 769 → 128 → 64 → 4 provides smooth feature extraction
+- **Gradual compression**: 769 → 128 → 64 → 6 provides smooth feature extraction
 - **Tested alternatives**:
-  - Single layer (256): Underfitting
-  - Three layers (256→128→64): Overfitting on small dataset
-- **Trade-off**: Complexity vs. training time
+  - Single layer (256): Underfitting, poor accuracy
+  - Three layers (256→128→64): Overfitting on smaller datasets
+- **Trade-off**: Complexity vs. training time vs. generalization
 
 ### 3. Why ReLU activation?
 
-- **Computational efficiency**: Simple max(0, x)
+- **Computational efficiency**: Simple max(0, x) - very fast in C++
 - **No vanishing gradients**: Unlike sigmoid/tanh
 - **Industry standard**: Proven for deep networks
+- Easy derivative: f'(x) = 1 if x > 0 else 0
 
 ### 4. Why learning rate = 0.001?
 
-- **Initial attempt** (0.01): Caused NaN values after epoch 2
-- **Final choice** (0.001): Stable convergence
-- **Future**: Adaptive learning rate (Adam optimizer) would improve speed
+- **Initial attempts** (0.01, 0.005): Caused instability or NaN values
+- **Final choice** (0.001): Stable convergence, smooth loss decrease
+- **Trade-off**: Slower training but more reliable convergence
+- **Future improvement**: Adaptive learning rate (Adam) could speed up training
 
 ### 5. Why Cross-Entropy loss?
 
-- **Multi-class classification**: Natural fit for 4 output classes
+- **Multi-class classification**: Natural fit for 6 output classes
 - **Probabilistic interpretation**: Softmax + Cross-Entropy = clean gradients
-- **Alternative**: MSE works but slower convergence
+- **Mathematical elegance**: ∂L/∂z = ŷ - y (simple gradient)
+- **Alternative**: MSE works but slower convergence and less suitable for classification
+
+### 6. Why C++ implementation?
+
+- **Performance**: 10-100x faster than Python for matrix operations
+- **No dependencies**: Self-contained, no external ML libraries required
+- **Educational value**: Complete understanding of every algorithm
+- **Project constraint**: Must be from-scratch implementation
+- **Deployment**: Single binary, easy distribution
+
+### 7. Why 6 output classes instead of 3?
+
+- **Finer granularity**: Distinguishes white advantage vs black advantage
+- **Better training**: Network learns perspective-aware features
+- **More informative**: Tells not just the state but who benefits
+- **Matches chess semantics**: "Check White" means white has the advantage
 
 ---
 
